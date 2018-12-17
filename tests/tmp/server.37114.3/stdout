@@ -1,0 +1,17 @@
+37336:C 16 Dec 2018 23:39:23.908 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+37336:C 16 Dec 2018 23:39:23.908 # Redis version=999.999.999, bits=64, commit=0bae6fd6, modified=1, pid=37336, just started
+37336:C 16 Dec 2018 23:39:23.908 # Configuration loaded
+37336:M 16 Dec 2018 23:39:23.908 * Increased maximum number of open files to 10032 (it was originally set to 1024).
+
+
+=== REDIS BUG REPORT START: Cut & paste starting from here ===
+37336:M 16 Dec 2018 23:39:23.909 # Redis 999.999.999 crashed by signal: 11
+37336:M 16 Dec 2018 23:39:23.909 # Accessing address: (nil)
+37336:M 16 Dec 2018 23:39:23.909 # Failed assertion: <no assertion failed> (<no file>:0)
+
+------ STACK TRACE ------
+src/redis-server(logStackTrace+0x29)[0x6f6449]
+src/redis-server(sigsegvHandler+0xac)[0x6f6b4c]
+/lib/x86_64-linux-gnu/libpthread.so.0(+0x10330)[0x2aaaab5fd330]
+
+------ INFO OUTPUT ------
