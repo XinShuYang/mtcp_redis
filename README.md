@@ -34,7 +34,7 @@ However, I found there are some kernel socket library functions are used by mtcp
 * There is much more inside the Redis official documentation. http://redis.io/documentation
 If you need to get more infromation about original redis version. You can find more detailed documentation at [redis.io](https://redis.io).
 
-Building MTCP-Redis
+Building Mtcp-Redis
 --------------
 
 MTCP-Redis can be compiled and used with DPDK on X86 Linux platform.
@@ -106,7 +106,7 @@ There are still some problems in redis-benchmark, We can't get the whole data fr
 
 
 
-Running MTCP-Redis
+Running Mtcp-Redis
 -------------
 
 To run Redis with the default configuration just type:
@@ -166,7 +166,7 @@ then in another terminal try the following:
 
 You can find the list of all the available commands at http://redis.io/commands.
 
-Installing MTCP-Redis
+Installing Mtcp-Redis
 -----------------
 
 In order to install Redis binaries into /usr/local/bin just use:
@@ -193,7 +193,7 @@ You'll be able to stop and start Redis using the script named
 `/etc/init.d/redis_<portnumber>`, for instance `/etc/init.d/redis_6379`.
 
 
-Redis internals
+Mtcp-Redis internals
 ===
 
 If you are reading this README you are likely in front of a Github page
