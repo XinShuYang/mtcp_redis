@@ -129,29 +129,44 @@ as options using the command line. Examples:
 All the options in redis.conf are also supported as options using the command
 line, with exactly the same name.
 
-Playing with Redis
+Using client with Mtcp-Redis Server
 ------------------
 
-You can use redis-cli to play with Redis. Start a redis-server instance,
+You can use redis-cli to access the server of Mtcp-Redis. Start a redis-server instance,
 then in another terminal try the following:
 
     % cd src
-    % ./redis-cli
-    redis> ping
-    PONG
-    redis> set foo bar
+    % ./redis-cli -h 192.168.1.1 -p 6379
+    redis> SET runoobkey redis
     OK
-    redis> get foo
-    "bar"
-    redis> incr mycounter
+    redis> DEL runoobkey
     (integer) 1
-    redis> incr mycounter
-    (integer) 2
-    redis>
+    redis> HMSET hashkey name "redis tutorial" description "redis basic commands for caching" likes 20 visitors 23000
+    OK
+    redis> HGETALL hashkey
+    1) "name"
+    2) "redis tutorial"
+    3) "description"
+    4) "redis basic commands for caching"
+    5) "likes"
+    6) "20"
+    7) "visitors"
+    8) "23000"
+    redis> SADD setexample redis
+    (integer) 1
+    redis> SADD setexample mongodb
+    (integer) 1
+    redis> SADD setexample mysql
+    (integer) 1
+    redis> SMEMBERS setexample
+    1) "mysql"
+    2) "mongodb"
+    3) "redis"
+    
 
 You can find the list of all the available commands at http://redis.io/commands.
 
-Installing Redis
+Installing MTCP-Redis
 -----------------
 
 In order to install Redis binaries into /usr/local/bin just use:
@@ -177,20 +192,6 @@ system reboots.
 You'll be able to stop and start Redis using the script named
 `/etc/init.d/redis_<portnumber>`, for instance `/etc/init.d/redis_6379`.
 
-Code contributions
------------------
-
-Note: by contributing code to the Redis project in any form, including sending
-a pull request via Github, a code fragment or patch via private email or
-public discussion groups, you agree to release your code under the terms
-of the BSD license that you can find in the [COPYING][1] file included in the Redis
-source distribution.
-
-Please see the [CONTRIBUTING][2] file in this source distribution for more
-information.
-
-[1]: https://github.com/antirez/redis/blob/unstable/COPYING
-[2]: https://github.com/antirez/redis/blob/unstable/CONTRIBUTING
 
 Redis internals
 ===
@@ -209,97 +210,23 @@ to follow.
 Source code layout
 ---
 
-The Redis root directory just contains this README, the Makefile which
+The MTCP-Redis root directory just contains this README, the Makefile which
 calls the real Makefile inside the `src` directory and an example
-configuration for Redis and Sentinel. You can find a few shell
-scripts that are used in order to execute the Redis, Redis Cluster and
-Redis Sentinel unit tests, which are implemented inside the `tests`
-directory.
+configuration for Redis and Sentinel.
 
 Inside the root are the following important directories:
 
 * `src`: contains the Redis implementation, written in C.
 * `tests`: contains the unit tests, implemented in Tcl.
-* `deps`: contains libraries Redis uses. Everything needed to compile Redis is inside this directory; your system just needs to provide `libc`, a POSIX compatible interface and a C compiler. Notably `deps` contains a copy of `jemalloc`, which is the default allocator of Redis under Linux. Note that under `deps` there are also things which started with the Redis project, but for which the main repository is not `antirez/redis`. An exception to this rule is `deps/geohash-int` which is the low level geocoding library used by Redis: it originated from a different project, but at this point it diverged so much that it is developed as a separated entity directly inside the Redis repository.
+* `deps`: contains libraries Redis uses. Everything needed to compile Redis is inside this directory; your system just needs to provide `libc`, a POSIX compatible interface and a C compiler.
+* `mtcp`: contains the Mtcp object file and library implementation and the mod.h file, written in C.
+* `util`: contains the Mtcp object file and library implementation, written in C.
+* `io_engine`: contains the DPDK file, written in C.
 
-There are a few more directories but they are not very important for our goals
-here. We'll focus mostly on `src`, where the Redis implementation is contained,
-exploring what there is inside each file. The order in which files are
-exposed is the logical one to follow in order to disclose different layers
-of complexity incrementally.
-
-Note: lately Redis was refactored quite a bit. Function names and file
-names have been changed, so you may find that this documentation reflects the
-`unstable` branch more closely. For instance in Redis 3.0 the `server.c`
-and `server.h` files were named `redis.c` and `redis.h`. However the overall
-structure is the same. Keep in mind that all the new developments and pull
-requests should be performed against the `unstable` branch.
-
-server.h
+mod.h
 ---
+This file contains all functions which can access mtcp library and redirect the socket functions in redis server.c
 
-The simplest way to understand how a program works is to understand the
-data structures it uses. So we'll start from the main header file of
-Redis, which is `server.h`.
-
-All the server configuration and in general all the shared state is
-defined in a global structure called `server`, of type `struct redisServer`.
-A few important fields in this structure are:
-
-* `server.db` is an array of Redis databases, where data is stored.
-* `server.commands` is the command table.
-* `server.clients` is a linked list of clients connected to the server.
-* `server.master` is a special client, the master, if the instance is a replica.
-
-There are tons of other fields. Most fields are commented directly inside
-the structure definition.
-
-Another important Redis data structure is the one defining a client.
-In the past it was called `redisClient`, now just `client`. The structure
-has many fields, here we'll just show the main ones:
-
-    struct client {
-        int fd;
-        sds querybuf;
-        int argc;
-        robj **argv;
-        redisDb *db;
-        int flags;
-        list *reply;
-        char buf[PROTO_REPLY_CHUNK_BYTES];
-        ... many other fields ...
-    }
-
-The client structure defines a *connected client*:
-
-* The `fd` field is the client socket file descriptor.
-* `argc` and `argv` are populated with the command the client is executing, so that functions implementing a given Redis command can read the arguments.
-* `querybuf` accumulates the requests from the client, which are parsed by the Redis server according to the Redis protocol and executed by calling the implementations of the commands the client is executing.
-* `reply` and `buf` are dynamic and static buffers that accumulate the replies the server sends to the client. These buffers are incrementally written to the socket as soon as the file descriptor is writable.
-
-As you can see in the client structure above, arguments in a command
-are described as `robj` structures. The following is the full `robj`
-structure, which defines a *Redis object*:
-
-    typedef struct redisObject {
-        unsigned type:4;
-        unsigned encoding:4;
-        unsigned lru:LRU_BITS; /* lru time (relative to server.lruclock) */
-        int refcount;
-        void *ptr;
-    } robj;
-
-Basically this structure can represent all the basic Redis data types like
-strings, lists, sets, sorted sets and so forth. The interesting thing is that
-it has a `type` field, so that it is possible to know what type a given
-object has, and a `refcount`, so that the same object can be referenced
-in multiple places without allocating it multiple times. Finally the `ptr`
-field points to the actual representation of the object, which might vary
-even for the same type, depending on the `encoding` used.
-
-Redis objects are used extensively in the Redis internals, however in order
-to avoid the overhead of indirect accesses, recently in many places
-we just use plain dynamic strings not wrapped inside a Redis object.
 
 server.c
 ---
