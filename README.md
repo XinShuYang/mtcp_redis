@@ -15,7 +15,7 @@ There are mainly three steps in receiving message : acceptTcpHandler(accept), re
 
 If all socket function in Redis can be replaced by Mtcp function, we can bypass the kernel components and define network in user space!
 
-
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/structure.png)
 
 
 * The full list of Redis commands. http://redis.io/commands
