@@ -17,6 +17,14 @@ If all socket function in Redis can be replaced by Mtcp function, we can bypass 
 
 ![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/structure.png)
 
+We can use dlsym() to handle the address of functions from linux socket library. And then redirect it to our own Mtcp function by function redefinition.
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/code1.png)
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/code2.png)
+
+Also, to implement this, the Redis-Server executable file need linker to link both library and obj files from Redis and Mtcp.
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/linker.png)
 
 * The full list of Redis commands. http://redis.io/commands
 * There is much more inside the Redis official documentation. http://redis.io/documentation
