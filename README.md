@@ -1,4 +1,3 @@
-This README is just a fast *quick start* document. You can find more detailed documentation at [redis.io](https://redis.io).
 
 What is MTCP-Redis?
 --------------
@@ -21,6 +20,7 @@ If all socket function in Redis can be replaced by Mtcp function, we can bypass 
 
 * The full list of Redis commands. http://redis.io/commands
 * There is much more inside the Redis official documentation. http://redis.io/documentation
+If you need to get more infromation about original redis version. You can find more detailed documentation at [redis.io](https://redis.io).
 
 Building MTCP-Redis
 --------------
