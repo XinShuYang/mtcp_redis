@@ -58,6 +58,7 @@ static int aeApiCreate(aeEventLoop *eventLoop) {
         zfree(state);
         return -1;
     }
+    printf("sucessful create epoll!\n");
     eventLoop->apidata = state;
     return 0;
 }
@@ -72,6 +73,7 @@ static int aeApiResize(aeEventLoop *eventLoop, int setsize) {
 static void aeApiFree(aeEventLoop *eventLoop) {
     aeApiState *state = eventLoop->apidata;
     
+    socketnum = 2;
     close(state->epfd);
     zfree(state->events);
     zfree(state);
@@ -91,7 +93,8 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     if (mask & AE_WRITABLE) ee.events |= EPOLLOUT;
     ee.data.fd = fd;
     socketnum = 2;
-    if (epoll_ctl(state->epfd,op,fd,&ee) == -1) return -1;
+    if (epoll_ctl(state->epfd,op,fd,&ee) == -1) { return -1;}   //mtcp modificaiton
+    printf("sucessful Add/mod epoll%d!\n",ee.data.fd);
     return 0;
 }
 
@@ -99,7 +102,7 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee = {0}; /* avoid valgrind warning */
     int mask = eventLoop->events[fd].mask & (~delmask);
-    
+    int ret;
     ee.events = 0;
     if (mask & AE_READABLE) ee.events |= EPOLLIN;
     if (mask & AE_WRITABLE) ee.events |= EPOLLOUT;
@@ -107,10 +110,13 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     socketnum = 2;
     if (mask != AE_NONE) {
         epoll_ctl(state->epfd,EPOLL_CTL_MOD,fd,&ee);
+        printf("sucessful MOD epoll%d!\n",ee.data.fd);
     } else {
         /* Note, Kernel < 2.6.9 requires a non null event pointer even for
          * EPOLL_CTL_DEL. */
-        epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee);
+        ret = epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee);
+        if(ret<0){socketnum = 2; close(fd);return;}
+        printf("sucessful delete epoll%d!\n",ee.data.fd);
     }
 }
 
@@ -118,6 +124,7 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;
     
+    socketnum = 2;
     retval = epoll_wait(state->epfd,state->events,eventLoop->setsize,
                         tvp ? (tvp->tv_sec*1000 + tvp->tv_usec/1000) : -1);
     if (retval > 0) {
@@ -135,6 +142,11 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
             eventLoop->fired[j].fd = e->data.fd;
             eventLoop->fired[j].mask = mask;
         }
+        printf("sucessful wait epoll!\n");
+    }
+    if (retval < 0) {
+        if (errno != EINTR)
+            perror("mtcp_epoll_wait");
     }
     return numevents;
 }

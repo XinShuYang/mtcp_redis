@@ -68,7 +68,7 @@ int anetSetBlock(char *err, int fd, int non_block) {
     /* Set the socket blocking (if non_block is zero) or non-blocking.
      * Note that fcntl(2) for F_GETFL and F_SETFL can't be
      * interrupted by a signal. */
-    /*
+    
     if ((flags = fcntl(fd, F_GETFL)) == -1) {
         anetSetError(err, "fcntl(F_GETFL): %s", strerror(errno));
         return ANET_ERR;
@@ -83,7 +83,7 @@ int anetSetBlock(char *err, int fd, int non_block) {
         anetSetError(err, "fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
         return ANET_ERR;
     }
-    return ANET_OK; */
+    
     
     if (setnonblocking(fd) < 0) {
         anetSetError(err, "setnonblocking fail: %s", strerror(errno));
@@ -125,6 +125,7 @@ int anetKeepAlive(char *err, int fd, int interval)
     
     /* Send first probe after interval. */
     val = interval;
+    socketnum = 2;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &val, sizeof(val)) < 0) {
         anetSetError(err, "setsockopt TCP_KEEPIDLE: %s\n", strerror(errno));
         return ANET_ERR;
@@ -135,6 +136,7 @@ int anetKeepAlive(char *err, int fd, int interval)
      * an error (see the next setsockopt call). */
     val = interval/3;
     if (val == 0) val = 1;
+    socketnum = 2;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &val, sizeof(val)) < 0) {
         anetSetError(err, "setsockopt TCP_KEEPINTVL: %s\n", strerror(errno));
         return ANET_ERR;
@@ -143,6 +145,7 @@ int anetKeepAlive(char *err, int fd, int interval)
     /* Consider the socket in error state after three we send three ACK
      * probes without getting a reply. */
     val = 3;
+    socketnum = 2;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &val, sizeof(val)) < 0) {
         anetSetError(err, "setsockopt TCP_KEEPCNT: %s\n", strerror(errno));
         return ANET_ERR;
@@ -274,6 +277,7 @@ static int anetCreateSocket(char *err, int domain) {
     /* Make sure connection-intensive things like the redis benchmark
      * will be able to close/open sockets a zillion of times */
     if (anetSetReuseAddr(err,s) == ANET_ERR) {
+        socketnum = 2;
         close(s);
         return ANET_ERR;
     }
@@ -458,12 +462,14 @@ static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int 
     socketnum = 2;
     if (bind(s,sa,len) == -1) {
         anetSetError(err, "bind: %s", strerror(errno));
+        socketnum = 2;
         close(s);
         return ANET_ERR;
     }
     socketnum = 2;
     if (listen(s, backlog) == -1) {
         anetSetError(err, "listen: %s", strerror(errno));
+        socketnum = 2;
         close(s);
         return ANET_ERR;
     }
@@ -475,6 +481,7 @@ static int anetV6Only(char *err, int s) {
     socketnum = 2;
     if (setsockopt(s,IPPROTO_IPV6,IPV6_V6ONLY,&yes,sizeof(yes)) == -1) {
         anetSetError(err, "setsockopt: %s", strerror(errno));
+        socketnum = 2;
         close(s);
         return ANET_ERR;
     }
