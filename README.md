@@ -24,7 +24,7 @@ We can use dlsym() to handle the address of functions from linux socket library.
 
 Also, to implement this, the Redis-Server executable file need linker to link both library and obj files from Redis and Mtcp.
 
-![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/linker.png)
+![image](width="150" height="200" https://github.com/XinShuYang/mtcp_redis/blob/master/example/linker.png)
 
 * The full list of Redis commands. http://redis.io/commands
 * There is much more inside the Redis official documentation. http://redis.io/documentation
