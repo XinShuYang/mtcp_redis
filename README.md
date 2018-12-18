@@ -24,7 +24,11 @@ We can use dlsym() to handle the address of functions from linux socket library.
 
 Also, to implement this, the Redis-Server executable file need linker to link both library and obj files from Redis and Mtcp.
 
-![image](width="150" height="200" https://github.com/XinShuYang/mtcp_redis/blob/master/example/linker.png)
+<div align=center><img src="https://github.com/XinShuYang/mtcp_redis/blob/master/example/linker.png" width="500" height="500" /></div>
+
+However, I found there are some kernel socket library functions are used by mtcp(socket) and other components in Redis. If all functions are redirected to mtcp, it doesn’t work. So we need to choose certain functions and add some variable to indicate whether it should be redirected to mtcp function. 
+
+
 
 * The full list of Redis commands. http://redis.io/commands
 * There is much more inside the Redis official documentation. http://redis.io/documentation
@@ -35,41 +39,70 @@ Building MTCP-Redis
 
 MTCP-Redis can be compiled and used with DPDK on X86 Linux platform.
 
-It may compile on Solaris derived systems (for instance SmartOS) but our
-support for this platform is *best effort* and Redis is not guaranteed to
-work as well as in Linux, OSX, and \*BSD there.
 
 It is as simple as:
 
     % make
 
-You can run a 32 bit Redis binary using:
+You can build redis-server:
 
-    % make 32bit
+    % make redis-server
 
-After building Redis, it is a good idea to test it using:
+However, make test is not useable now.
 
-    % make test
 
-Fixing build problems 
+Fixing build problems (MY ERROR RECORD)
 ---------
 
-Redis has some dependencies which are included into the `deps` directory.
-`make` does not automatically rebuild dependencies even if something in
-the source code of dependencies changes.
+Originally the server node has eth0(128.104.222.152  255.255.254.0),eth1(192.168.1.3 255.255.255.0 ) and eth2(192.168.1.2 255.255.255.0) .
 
-When you update the source code with `git pull` or when code inside the
-dependencies tree is modified in any other way, make sure to use the following
-command in order to really clean everything and rebuild from scratch:
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error1.png)
 
-    make distclean
+The client node has eth0 and eth1
 
-This will clean: jemalloc, lua, hiredis, linenoise.
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error2.png)
 
-Also if you force certain build options like 32bit target, no C compiler
-optimizations (for debugging purposes), and other similar build time options,
-those options are cached indefinitely until you issue a `make distclean`
-command.
+At this time, I tested the traditional tcp connection between server and client on LAN(server bind on 192.168.1.3, client on 192.168.1.1 can send message to it), the connection is successful.
+
+
+Then, I use the instructions on Cloudlab server node:
+
+
+    cd /local/onvm/openNetVM/scripts  
+    source setup_cloudlab.sh  
+    sudo ifconfig eth1 down
+    ./setup_environment.sh
+
+I can see eth1 is down and bind with DPDK driver successfully. 
+
+Then I start the dpdk0 interface from dpdk-setup-iface.sh on server node
+
+	Sudo ./dpdk-setup-iface.sh dpdk0 192.168.1.3 255.255.255.0 up
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error3.png)
+
+Then I run set up the cpu core number in ./configure and run “make” in mtcp dictionary
+There is no error in this step from bash.
+
+Then I start the epserver in server node
+
+    sudo ./epserver -p www -f epserver-multiprocess.conf -N 1
+    
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error4.png)
+
+Then I try to use tcp connection on client server, since the address and netmark of dpdk0 is as same as the eth1. I think the connection will be successful. But the connection is refused
+
+Then I found the new hardware address of dpdk0  is different. So I update the arp table on client node. But then the tcp connection even not get a respond…
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error5.png)
+
+Now I can’t get connection to dpdk0(192.168.1.3) from client(192.168.1.1). The eth2(192.168.1.2) can be access from client.
+
+
+Solution: All the problems above are from wrong binding address on NIC.
+The address you start in dpdk0 should be as same as the address you down in eth.
+
+There are still some problems in redis-benchmark, We can't get the whole data from multiple clients now. I am trying to fix this problem.
 
 
 
