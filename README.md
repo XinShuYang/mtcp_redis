@@ -1,31 +1,31 @@
 This README is just a fast *quick start* document. You can find more detailed documentation at [redis.io](https://redis.io).
 
-What is Redis?
+What is MTCP-Redis?
 --------------
 
-Redis is often referred as a *data structures* server. What this means is that Redis provides access to mutable data structures via a set of commands, which are sent using a *server-client* model with TCP sockets and a simple protocol. So different processes can query and modify the same data structures in a shared way.
+Mtcp-Redis is a Redis database with NFV network components. It rebuilds the network function in user space, which can improve the performance and network module customization on Redis.
 
-Data structures implemented into Redis have a few special properties:
 
-* Redis cares to store them on disk, even if they are always served and modified into the server memory. This means that Redis is fast, but that is also non-volatile.
-* Implementation of data structures stress on memory efficiency, so data structures inside Redis will likely use less memory compared to the same data structure modeled using an high level programming language.
-* Redis offers a number of features that are natural to find in a database, like replication, tunable levels of durability, cluster, high availability.
+The basic idea is using dynamic library reloading to replace the socket function in Redis without modifying Redis function code frequently.
 
-Another good example is to think of Redis as a more complex version of memcached, where the operations are not just SETs and GETs, but operations to work with complex data types like Lists, Sets, ordered data structures, and so forth.
+Firstly, we need to analyze network components on Redis server side.
 
-If you want to know more, this is a list of selected starting points:
+There is one significant Loop(aeMain Cycle) for epoll_wait function.
 
-* Introduction to Redis data types. http://redis.io/topics/data-types-intro
-* Try Redis directly inside your browser. http://try.redis.io
+There are mainly three steps in receiving message : acceptTcpHandler(accept), readQueryFromClient(read) and sendReplyToClient(write). All of them is loaded as a epoll event by epoll_ctl. 
+
+If all socket function in Redis can be replaced by Mtcp function, we can bypass the kernel components and define network in user space!
+
+
+
+
 * The full list of Redis commands. http://redis.io/commands
 * There is much more inside the Redis official documentation. http://redis.io/documentation
 
-Building Redis
+Building MTCP-Redis
 --------------
 
-Redis can be compiled and used on Linux, OSX, OpenBSD, NetBSD, FreeBSD.
-We support big endian and little endian architectures, and both 32 bit
-and 64 bit systems.
+MTCP-Redis can be compiled and used with DPDK on X86 Linux platform.
 
 It may compile on Solaris derived systems (for instance SmartOS) but our
 support for this platform is *best effort* and Redis is not guaranteed to
@@ -43,7 +43,7 @@ After building Redis, it is a good idea to test it using:
 
     % make test
 
-Fixing build problems with dependencies or cached build options
+Fixing build problems 
 ---------
 
 Redis has some dependencies which are included into the `deps` directory.
@@ -63,64 +63,27 @@ optimizations (for debugging purposes), and other similar build time options,
 those options are cached indefinitely until you issue a `make distclean`
 command.
 
-Fixing problems building 32 bit binaries
----------
 
-If after building Redis with a 32 bit target you need to rebuild it
-with a 64 bit target, or the other way around, you need to perform a
-`make distclean` in the root directory of the Redis distribution.
 
-In case of build errors when trying to build a 32 bit binary of Redis, try
-the following steps:
-
-* Install the packages libc6-dev-i386 (also try g++-multilib).
-* Try using the following command line instead of `make 32bit`:
-  `make CFLAGS="-m32 -march=native" LDFLAGS="-m32"`
-
-Allocator
----------
-
-Selecting a non-default memory allocator when building Redis is done by setting
-the `MALLOC` environment variable. Redis is compiled and linked against libc
-malloc by default, with the exception of jemalloc being the default on Linux
-systems. This default was picked because jemalloc has proven to have fewer
-fragmentation problems than libc malloc.
-
-To force compiling against libc malloc, use:
-
-    % make MALLOC=libc
-
-To compile against jemalloc on Mac OS X systems, use:
-
-    % make MALLOC=jemalloc
-
-Verbose build
--------------
-
-Redis will build with a user friendly colorized output by default.
-If you want to see a more verbose output use the following:
-
-    % make V=1
-
-Running Redis
+Running MTCP-Redis
 -------------
 
 To run Redis with the default configuration just type:
 
     % cd src
-    % ./redis-server
+    % sudo ./redis-server 
 
 If you want to provide your redis.conf, you have to run it using an additional
 parameter (the path of the configuration file):
 
     % cd src
-    % ./redis-server /path/to/redis.conf
+    % sudo ./redis-server redis.conf 
 
 It is possible to alter the Redis configuration by passing parameters directly
 as options using the command line. Examples:
 
-    % ./redis-server --port 9999 --replicaof 127.0.0.1 6379
-    % ./redis-server /etc/redis/6379.conf --loglevel debug
+    % cd src
+    % sudo ./redis-server redis.conf --maxclients 100000
 
 All the options in redis.conf are also supported as options using the command
 line, with exactly the same name.
