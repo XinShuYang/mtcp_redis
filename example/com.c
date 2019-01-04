@@ -7,8 +7,6 @@
 #include <fcntl.h>     /* nonblocking */
 #include <sys/resource.h> /*setrlimit */
 
-
-
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -44,7 +42,6 @@ int main(int argc, char **argv)
     char buf[MAXLINE];
     acceptCount = 0;
     
-    testprint();    
     mod();
     setconfm();
     
@@ -71,6 +68,7 @@ int main(int argc, char **argv)
         perror("can't create socket file");
         return -1;
     }
+    printf("listenfd=%d\n",listenfd);
     
     int opt = 1;
     socketnum = 2;

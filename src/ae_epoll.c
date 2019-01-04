@@ -94,7 +94,7 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     ee.data.fd = fd;
     socketnum = 2;
     if (epoll_ctl(state->epfd,op,fd,&ee) == -1) { return -1;}   //mtcp modificaiton
-    printf("sucessful Add/mod epoll%d!\n",ee.data.fd);
+    printf("sucessful Add/mod epoll%d!\n",state->epfd);
     return 0;
 }
 
@@ -116,7 +116,7 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
          * EPOLL_CTL_DEL. */
         ret = epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee);
         if(ret<0){socketnum = 2; close(fd);return;}
-        printf("sucessful delete epoll%d!\n",ee.data.fd);
+        printf("sucessful delete epoll%d!\n",state->epfd);
     }
 }
 
@@ -142,7 +142,7 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
             eventLoop->fired[j].fd = e->data.fd;
             eventLoop->fired[j].mask = mask;
         }
-        printf("sucessful wait epoll!\n");
+        printf("sucessful wait epoll!%d\n",state->epfd);
     }
     if (retval < 0) {
         if (errno != EINTR)
