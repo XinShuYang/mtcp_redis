@@ -15,6 +15,18 @@ There are mainly three steps in receiving message : acceptTcpHandler(accept), re
 
 If all socket function in Redis can be replaced by Mtcp function, we can bypass the kernel components and define network in user space!
 
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/structure.png)
+
+We can use dlsym() to handle the address of functions from linux socket library. And then redirect it to our own Mtcp function by function redefinition.
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/code1.png)
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/code2.png)
+
+Also, to implement this, the Redis-Server executable file need linker to link both library and obj files from Redis and Mtcp.
+
+<div align=center><img src="https://github.com/XinShuYang/mtcp_redis/blob/master/example/linker.png" width="500" height="500" /></div>
+
+However, I found there are some kernel socket library functions are used by mtcp(socket) and other components in Redis. If all functions are redirected to mtcp, it doesn’t work. So we need to choose certain functions and add some variable to indicate whether it should be redirected to mtcp function. 
 
 
 
@@ -22,50 +34,79 @@ If all socket function in Redis can be replaced by Mtcp function, we can bypass 
 * There is much more inside the Redis official documentation. http://redis.io/documentation
 If you need to get more infromation about original redis version. You can find more detailed documentation at [redis.io](https://redis.io).
 
-Building MTCP-Redis
+Building Mtcp-Redis
 --------------
 
 MTCP-Redis can be compiled and used with DPDK on X86 Linux platform.
 
-It may compile on Solaris derived systems (for instance SmartOS) but our
-support for this platform is *best effort* and Redis is not guaranteed to
-work as well as in Linux, OSX, and \*BSD there.
 
 It is as simple as:
 
     % make
 
-You can run a 32 bit Redis binary using:
+You can build redis-server:
 
-    % make 32bit
+    % make redis-server
 
-After building Redis, it is a good idea to test it using:
+However, make test is not useable now.
 
-    % make test
 
-Fixing build problems 
+Fixing build problems (MY ERROR RECORD)
 ---------
 
-Redis has some dependencies which are included into the `deps` directory.
-`make` does not automatically rebuild dependencies even if something in
-the source code of dependencies changes.
+Originally the server node has eth0(128.104.222.152  255.255.254.0),eth1(192.168.1.3 255.255.255.0 ) and eth2(192.168.1.2 255.255.255.0) .
 
-When you update the source code with `git pull` or when code inside the
-dependencies tree is modified in any other way, make sure to use the following
-command in order to really clean everything and rebuild from scratch:
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error1.png)
 
-    make distclean
+The client node has eth0 and eth1
 
-This will clean: jemalloc, lua, hiredis, linenoise.
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error2.png)
 
-Also if you force certain build options like 32bit target, no C compiler
-optimizations (for debugging purposes), and other similar build time options,
-those options are cached indefinitely until you issue a `make distclean`
-command.
+At this time, I tested the traditional tcp connection between server and client on LAN(server bind on 192.168.1.3, client on 192.168.1.1 can send message to it), the connection is successful.
 
 
+Then, I use the instructions on Cloudlab server node:
 
-Running MTCP-Redis
+
+    cd /local/onvm/openNetVM/scripts  
+    source setup_cloudlab.sh  
+    sudo ifconfig eth1 down
+    ./setup_environment.sh
+
+I can see eth1 is down and bind with DPDK driver successfully. 
+
+Then I start the dpdk0 interface from dpdk-setup-iface.sh on server node
+
+	Sudo ./dpdk-setup-iface.sh dpdk0 192.168.1.3 255.255.255.0 up
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error3.png)
+
+Then I run set up the cpu core number in ./configure and run “make” in mtcp dictionary
+There is no error in this step from bash.
+
+Then I start the epserver in server node
+
+    sudo ./epserver -p www -f epserver-multiprocess.conf -N 1
+    
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error4.png)
+
+Then I try to use tcp connection on client server, since the address and netmark of dpdk0 is as same as the eth1. I think the connection will be successful. But the connection is refused
+
+Then I found the new hardware address of dpdk0  is different. So I update the arp table on client node. But then the tcp connection even not get a respond…
+
+![image](https://github.com/XinShuYang/mtcp_redis/blob/master/example/error5.png)
+
+Now I can’t get connection to dpdk0(192.168.1.3) from client(192.168.1.1). The eth2(192.168.1.2) can be access from client.
+
+
+Solution: All the problems above are from wrong binding address on NIC.
+The address you start in dpdk0 should be as same as the address you down in eth.
+
+There are still some problems in redis-benchmark, We can't get the whole data from multiple clients now. I am trying to fix this problem.
+
+
+
+Running Mtcp-Redis
 -------------
 
 To run Redis with the default configuration just type:
@@ -88,29 +129,44 @@ as options using the command line. Examples:
 All the options in redis.conf are also supported as options using the command
 line, with exactly the same name.
 
-Playing with Redis
+Using client with Mtcp-Redis Server
 ------------------
 
-You can use redis-cli to play with Redis. Start a redis-server instance,
+You can use redis-cli to access the server of Mtcp-Redis. Start a redis-server instance,
 then in another terminal try the following:
 
     % cd src
-    % ./redis-cli
-    redis> ping
-    PONG
-    redis> set foo bar
+    % ./redis-cli -h 192.168.1.1 -p 6379
+    redis> SET runoobkey redis
     OK
-    redis> get foo
-    "bar"
-    redis> incr mycounter
+    redis> DEL runoobkey
     (integer) 1
-    redis> incr mycounter
-    (integer) 2
-    redis>
+    redis> HMSET hashkey name "redis tutorial" description "redis basic commands for caching" likes 20 visitors 23000
+    OK
+    redis> HGETALL hashkey
+    1) "name"
+    2) "redis tutorial"
+    3) "description"
+    4) "redis basic commands for caching"
+    5) "likes"
+    6) "20"
+    7) "visitors"
+    8) "23000"
+    redis> SADD setexample redis
+    (integer) 1
+    redis> SADD setexample mongodb
+    (integer) 1
+    redis> SADD setexample mysql
+    (integer) 1
+    redis> SMEMBERS setexample
+    1) "mysql"
+    2) "mongodb"
+    3) "redis"
+    
 
 You can find the list of all the available commands at http://redis.io/commands.
 
-Installing Redis
+Installing Mtcp-Redis
 -----------------
 
 In order to install Redis binaries into /usr/local/bin just use:
@@ -136,22 +192,8 @@ system reboots.
 You'll be able to stop and start Redis using the script named
 `/etc/init.d/redis_<portnumber>`, for instance `/etc/init.d/redis_6379`.
 
-Code contributions
------------------
 
-Note: by contributing code to the Redis project in any form, including sending
-a pull request via Github, a code fragment or patch via private email or
-public discussion groups, you agree to release your code under the terms
-of the BSD license that you can find in the [COPYING][1] file included in the Redis
-source distribution.
-
-Please see the [CONTRIBUTING][2] file in this source distribution for more
-information.
-
-[1]: https://github.com/antirez/redis/blob/unstable/COPYING
-[2]: https://github.com/antirez/redis/blob/unstable/CONTRIBUTING
-
-Redis internals
+Mtcp-Redis internals
 ===
 
 If you are reading this README you are likely in front of a Github page
@@ -168,97 +210,23 @@ to follow.
 Source code layout
 ---
 
-The Redis root directory just contains this README, the Makefile which
+The MTCP-Redis root directory just contains this README, the Makefile which
 calls the real Makefile inside the `src` directory and an example
-configuration for Redis and Sentinel. You can find a few shell
-scripts that are used in order to execute the Redis, Redis Cluster and
-Redis Sentinel unit tests, which are implemented inside the `tests`
-directory.
+configuration for Redis and Sentinel.
 
 Inside the root are the following important directories:
 
 * `src`: contains the Redis implementation, written in C.
 * `tests`: contains the unit tests, implemented in Tcl.
-* `deps`: contains libraries Redis uses. Everything needed to compile Redis is inside this directory; your system just needs to provide `libc`, a POSIX compatible interface and a C compiler. Notably `deps` contains a copy of `jemalloc`, which is the default allocator of Redis under Linux. Note that under `deps` there are also things which started with the Redis project, but for which the main repository is not `antirez/redis`. An exception to this rule is `deps/geohash-int` which is the low level geocoding library used by Redis: it originated from a different project, but at this point it diverged so much that it is developed as a separated entity directly inside the Redis repository.
+* `deps`: contains libraries Redis uses. Everything needed to compile Redis is inside this directory; your system just needs to provide `libc`, a POSIX compatible interface and a C compiler.
+* `mtcp`: contains the Mtcp object file and library implementation and the mod.h file, written in C.
+* `util`: contains the Mtcp object file and library implementation, written in C.
+* `io_engine`: contains the DPDK file, written in C.
 
-There are a few more directories but they are not very important for our goals
-here. We'll focus mostly on `src`, where the Redis implementation is contained,
-exploring what there is inside each file. The order in which files are
-exposed is the logical one to follow in order to disclose different layers
-of complexity incrementally.
-
-Note: lately Redis was refactored quite a bit. Function names and file
-names have been changed, so you may find that this documentation reflects the
-`unstable` branch more closely. For instance in Redis 3.0 the `server.c`
-and `server.h` files were named `redis.c` and `redis.h`. However the overall
-structure is the same. Keep in mind that all the new developments and pull
-requests should be performed against the `unstable` branch.
-
-server.h
+mod.h
 ---
+This file contains all functions which can access mtcp library and redirect the socket functions in redis server.c
 
-The simplest way to understand how a program works is to understand the
-data structures it uses. So we'll start from the main header file of
-Redis, which is `server.h`.
-
-All the server configuration and in general all the shared state is
-defined in a global structure called `server`, of type `struct redisServer`.
-A few important fields in this structure are:
-
-* `server.db` is an array of Redis databases, where data is stored.
-* `server.commands` is the command table.
-* `server.clients` is a linked list of clients connected to the server.
-* `server.master` is a special client, the master, if the instance is a replica.
-
-There are tons of other fields. Most fields are commented directly inside
-the structure definition.
-
-Another important Redis data structure is the one defining a client.
-In the past it was called `redisClient`, now just `client`. The structure
-has many fields, here we'll just show the main ones:
-
-    struct client {
-        int fd;
-        sds querybuf;
-        int argc;
-        robj **argv;
-        redisDb *db;
-        int flags;
-        list *reply;
-        char buf[PROTO_REPLY_CHUNK_BYTES];
-        ... many other fields ...
-    }
-
-The client structure defines a *connected client*:
-
-* The `fd` field is the client socket file descriptor.
-* `argc` and `argv` are populated with the command the client is executing, so that functions implementing a given Redis command can read the arguments.
-* `querybuf` accumulates the requests from the client, which are parsed by the Redis server according to the Redis protocol and executed by calling the implementations of the commands the client is executing.
-* `reply` and `buf` are dynamic and static buffers that accumulate the replies the server sends to the client. These buffers are incrementally written to the socket as soon as the file descriptor is writable.
-
-As you can see in the client structure above, arguments in a command
-are described as `robj` structures. The following is the full `robj`
-structure, which defines a *Redis object*:
-
-    typedef struct redisObject {
-        unsigned type:4;
-        unsigned encoding:4;
-        unsigned lru:LRU_BITS; /* lru time (relative to server.lruclock) */
-        int refcount;
-        void *ptr;
-    } robj;
-
-Basically this structure can represent all the basic Redis data types like
-strings, lists, sets, sorted sets and so forth. The interesting thing is that
-it has a `type` field, so that it is possible to know what type a given
-object has, and a `refcount`, so that the same object can be referenced
-in multiple places without allocating it multiple times. Finally the `ptr`
-field points to the actual representation of the object, which might vary
-even for the same type, depending on the `encoding` used.
-
-Redis objects are used extensively in the Redis internals, however in order
-to avoid the overhead of indirect accesses, recently in many places
-we just use plain dynamic strings not wrapped inside a Redis object.
 
 server.c
 ---
