@@ -315,7 +315,7 @@ $(REDIS_CLI_NAME): ${MTCP_FLD}/lib/libmtcp.a  $(REDIS_CLI_OBJ)
 
 # redis-benchmark
 $(REDIS_BENCHMARK_NAME): $(REDIS_BENCHMARK_OBJ)
-	$(REDIS_LD) -o $@ $^ ../deps/hiredis/libhiredis.a $(FINAL_LIBS)
+	${CC} ${LIBS} ${UTIL_OBJ}  -o $@ $^ ../deps/hiredis/libhiredis.a ${MTCP_FLD}/lib/libmtcp.a $(FINAL_LIBS)
 
 com: com.o ${MTCP_FLD}/lib/libmtcp.a
 	$(MSG) "   LD $<"

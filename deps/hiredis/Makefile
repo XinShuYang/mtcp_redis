@@ -1,7 +1,80 @@
+
 # Hiredis Makefile
 # Copyright (C) 2010-2011 Salvatore Sanfilippo <antirez at gmail dot com>
 # Copyright (C) 2010-2011 Pieter Noordhuis <pcnoordhuis at gmail dot com>
 # This file is released under the BSD license, see the COPYING file
+
+#mtcp
+CC=gcc -g -O3 -Wall -Werror -fgnu89-inline
+DPDK=1
+PS=0
+NETMAP=0
+ONVM=0
+CFLAGS=-DMAX_CPUS=20
+
+# DPDK LIBRARY and HEADER
+DPDK_INC=/local/onvm/openNetVM/dpdk/x86_64-native-linuxapp-gcc/include
+DPDK_LIB=/local/onvm/openNetVM/dpdk/x86_64-native-linuxapp-gcc/lib/
+
+MTCP_FLD    =../../mtcp
+MTCP_INC    =-I${MTCP_FLD}/include
+MTCP_LIB    =-L${MTCP_FLD}/lib
+MTCP_TARGET = ${MTCP_LIB}/libmtcp.a
+
+UTIL_FLD = ../../util
+UTIL_INC = -I${UTIL_FLD}/include
+UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o ${UTIL_FLD}/netlib.o
+
+
+PS_DIR = ../io_engine/
+PS_INC = ${PS_DIR}/include
+INC = -I./include/ ${UTIL_INC} ${MTCP_INC} -I${UTIL_FLD}/include
+LIBS = ${MTCP_LIB}
+ifeq ($(PS),1)
+INC += -I{PS_INC}
+LIBS += -lmtcp -L${PS_DIR}/lib -lps -lpthread -lnuma -lrt
+endif
+
+ifeq ($(NETMAP),1)
+LIBS += -lmtcp -lpthread -lnuma -lrt
+endif
+# CFLAGS for DPDK-related compilation
+INC += ${MTCP_INC}
+ifeq ($(DPDK),1)
+DPDK_MACHINE_FLAGS = $(shell cat /local/onvm/openNetVM/dpdk/x86_64-native-linuxapp-gcc/include/cflags.txt)
+INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
+endif
+
+ifeq ($(shell uname -m),x86_64)
+LIBS += -m64
+endif
+
+ifeq ($(DPDK),1)
+DPDK_LIB_FLAGS = $(shell cat /local/onvm/openNetVM/dpdk/x86_64-native-linuxapp-gcc/lib/ldflags.txt)
+#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
+LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
+else
+#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
+LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
+endif
+
+ifeq ($(ONVM),1)
+ifeq ($(RTE_TARGET),)
+$(error "Please define RTE_TARGET environment variable")
+endif
+
+INC += -I/onvm_nflib
+INC += -DENABLE_ONVM
+LIBS += /onvm_nflib/$(RTE_TARGET)/libonvm.a
+endif
+ifeq ($V,) # no echo
+        export MSG=@echo
+        export HIDE=@
+else
+        export MSG=@\#
+        export HIDE=
+endif
+#-------------------------------------------
 
 OBJ=net.o hiredis.o sds.o async.o read.o
 EXAMPLES=hiredis-example hiredis-example-libevent hiredis-example-libev hiredis-example-glib
@@ -34,16 +107,15 @@ define REDIS_TEST_CONFIG
 	unixsocket /tmp/hiredis-test-redis.sock
 endef
 export REDIS_TEST_CONFIG
-
+DPDK_LIB_FLAGS = $(shell cat /local/onvm/openNetVM/dpdk/x86_64-native-linuxapp-gcc/lib/ldflags.txt)
 # Fallback to gcc when $CC is not in $PATH.
-CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
-CXX:=$(shell sh -c 'type $(CXX) >/dev/null 2>/dev/null && echo $(CXX) || echo g++')
+CC:=$(shell sh -c 'type $${CC%% *} >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
+CXX:=$(shell sh -c 'type $${CXX%% *} >/dev/null 2>/dev/null && echo $(CXX) || echo g++')
 OPTIMIZATION?=-O3
 WARNINGS=-Wall -W -Wstrict-prototypes -Wwrite-strings
-DEBUG_FLAGS?= -g -ggdb
-REAL_CFLAGS=$(OPTIMIZATION) -fPIC $(CFLAGS) $(WARNINGS) $(DEBUG_FLAGS) $(ARCH)
-REAL_LDFLAGS=$(LDFLAGS) $(ARCH)
-
+DEBUG_FLAGS?= -g -ggdb ${MTCP_FLD}/lib/libmtcp.a -L ../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
+REAL_CFLAGS=$(OPTIMIZATION) -fPIC $(CPPFLAGS) $(CFLAGS) $(WARNINGS) $(DEBUG_FLAGS)
+REAL_LDFLAGS=$(LDFLAGS)
 DYLIBSUFFIX=so
 STLIBSUFFIX=a
 DYLIB_MINOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(HIREDIS_SONAME)
@@ -58,12 +130,11 @@ uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),SunOS)
   REAL_LDFLAGS+= -ldl -lnsl -lsocket
   DYLIB_MAKE_CMD=$(CC) -G -o $(DYLIBNAME) -h $(DYLIB_MINOR_NAME) $(LDFLAGS)
-  INSTALL= cp -r
 endif
 ifeq ($(uname_S),Darwin)
   DYLIBSUFFIX=dylib
   DYLIB_MINOR_NAME=$(LIBNAME).$(HIREDIS_SONAME).$(DYLIBSUFFIX)
-  DYLIB_MAKE_CMD=$(CC) -shared -Wl,-install_name,$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
+  DYLIB_MAKE_CMD=$(CC) -dynamiclib -Wl,-install_name,$(PREFIX)/$(LIBRARY_PATH)/$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
 endif
 
 all: $(DYLIBNAME) $(STLIBNAME) hiredis-test $(PKGCONFNAME)
@@ -72,7 +143,7 @@ all: $(DYLIBNAME) $(STLIBNAME) hiredis-test $(PKGCONFNAME)
 async.o: async.c fmacros.h async.h hiredis.h read.h sds.h net.h dict.c dict.h
 dict.o: dict.c fmacros.h dict.h
 hiredis.o: hiredis.c fmacros.h hiredis.h read.h sds.h net.h
-net.o: net.c fmacros.h net.h hiredis.h read.h sds.h
+net.o: net.c fmacros.h net.h hiredis.h read.h sds.h ../../src/mod.h
 read.o: read.c fmacros.h read.h sds.h
 sds.o: sds.c sds.h
 test.o: test.c fmacros.h hiredis.h read.h sds.h
@@ -88,19 +159,19 @@ static: $(STLIBNAME)
 
 # Binaries:
 hiredis-example-libevent: examples/example-libevent.c adapters/libevent.h $(STLIBNAME)
-	$(CC) -o examples/$@ $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -levent $(STLIBNAME)
+	$(CC) -o examples/$@ ${MTCP_FLD}/lib/libmtcp.a  $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -levent $(STLIBNAME)
 
 hiredis-example-libev: examples/example-libev.c adapters/libev.h $(STLIBNAME)
-	$(CC) -o examples/$@ $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -lev $(STLIBNAME)
+	$(CC) -o examples/$@ ${MTCP_FLD}/lib/libmtcp.a  $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -lev $(STLIBNAME)
 
 hiredis-example-glib: examples/example-glib.c adapters/glib.h $(STLIBNAME)
-	$(CC) -o examples/$@ $(REAL_CFLAGS) $(REAL_LDFLAGS) $(shell pkg-config --cflags --libs glib-2.0) -I. $< $(STLIBNAME)
+	$(CC) -o examples/$@ ${MTCP_FLD}/lib/libmtcp.a  $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< $(shell pkg-config --cflags --libs glib-2.0) $(STLIBNAME)
 
 hiredis-example-ivykis: examples/example-ivykis.c adapters/ivykis.h $(STLIBNAME)
-	$(CC) -o examples/$@ $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -livykis $(STLIBNAME)
+	$(CC) -o examples/$@ ${MTCP_FLD}/lib/libmtcp.a  $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -livykis $(STLIBNAME)
 
 hiredis-example-macosx: examples/example-macosx.c adapters/macosx.h $(STLIBNAME)
-	$(CC) -o examples/$@ $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -framework CoreFoundation $(STLIBNAME)
+	$(CC) -o examples/$@ ${MTCP_FLD}/lib/libmtcp.a  $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< -framework CoreFoundation $(STLIBNAME)
 
 ifndef AE_DIR
 hiredis-example-ae:
@@ -134,11 +205,12 @@ hiredis-example-qt: examples/example-qt.cpp adapters/qt.h $(STLIBNAME)
 endif
 
 hiredis-example: examples/example.c $(STLIBNAME)
-	$(CC) -o examples/$@ $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< $(STLIBNAME)
+	$(CC) -o examples/$@ ${MTCP_FLD}/lib/libmtcp.a  $(REAL_CFLAGS) $(REAL_LDFLAGS) -I. $< $(STLIBNAME)
 
 examples: $(EXAMPLES)
 
-hiredis-test: test.o $(STLIBNAME)
+hiredis-test:  test.o $(STLIBNAME)
+	${CC} ${LIBS} ${UTIL_OBJ} -o $@ $^ ${MTCP_FLD}/lib/libmtcp.a 
 
 hiredis-%: %.o $(STLIBNAME)
 	$(CC) $(REAL_CFLAGS) -o $@ $(REAL_LDFLAGS) $< $(STLIBNAME)
@@ -161,11 +233,7 @@ clean:
 dep:
 	$(CC) -MM *.c
 
-ifeq ($(uname_S),SunOS)
-  INSTALL?= cp -r
-endif
-
-INSTALL?= cp -a
+INSTALL?= cp -pPR
 
 $(PKGCONFNAME): hiredis.h
 	@echo "Generating $@ for pkgconfig..."
@@ -181,8 +249,9 @@ $(PKGCONFNAME): hiredis.h
 	@echo Cflags: -I\$${includedir} -D_FILE_OFFSET_BITS=64 >> $@
 
 install: $(DYLIBNAME) $(STLIBNAME) $(PKGCONFNAME)
-	mkdir -p $(INSTALL_INCLUDE_PATH) $(INSTALL_LIBRARY_PATH)
-	$(INSTALL) hiredis.h async.h read.h sds.h adapters $(INSTALL_INCLUDE_PATH)
+	mkdir -p $(INSTALL_INCLUDE_PATH) $(INSTALL_INCLUDE_PATH)/adapters $(INSTALL_LIBRARY_PATH)
+	$(INSTALL) hiredis.h async.h read.h sds.h $(INSTALL_INCLUDE_PATH)
+	$(INSTALL) adapters/*.h $(INSTALL_INCLUDE_PATH)/adapters
 	$(INSTALL) $(DYLIBNAME) $(INSTALL_LIBRARY_PATH)/$(DYLIB_MINOR_NAME)
 	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MINOR_NAME) $(DYLIBNAME)
 	$(INSTALL) $(STLIBNAME) $(INSTALL_LIBRARY_PATH)

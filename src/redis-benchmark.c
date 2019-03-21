@@ -29,7 +29,7 @@
  */
 
 #include "fmacros.h"
-
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -39,18 +39,20 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <assert.h>
+#include <mtcp_api.h>
 
 #include <sds.h> /* Use hiredis sds. */
 #include "ae.h"
 #include "hiredis.h"
 #include "adlist.h"
 #include "zmalloc.h"
-
 #include "mod.h"
 
 extern int socketnum;
 
-#define UNUSED(V) ((void) V)
+
+
+//#define UNUSED(V) ((void) V)
 #define RANDPTR_INITIAL_SIZE 8
 
 static struct config {
@@ -130,8 +132,6 @@ static void freeClient(client c) {
     listNode *ln;
     aeDeleteFileEvent(config.el,c->context->fd,AE_WRITABLE);
     aeDeleteFileEvent(config.el,c->context->fd,AE_READABLE);
-   
-    if(c->context.fd >0){socketnum = 2;close(c->context.fd);}
     redisFree(c->context);
     sdsfree(c->obuf);
     zfree(c->randptr);
@@ -321,11 +321,22 @@ static void writeHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
  * Even when cloning another client, prefix commands are applied if needed.*/
 static client createClient(char *cmd, size_t len, client from) {
     int j;
-    client c = zmalloc(sizeof(struct _client));
+    //mtcp_init_rss(mctx, saddr, IP_RANGE, daddr, dport);
+    static in_addr_t daddr;
+    //static in_port_t dport;
+    static in_addr_t saddr;
     
+    daddr = inet_addr(config.hostip);
+    saddr = INADDR_ANY;
+    //dport = inet_addr(config.hostport);
+    mtcp_init_rss(0, saddr, 1, daddr, config.hostport);
+    
+    client c = zmalloc(sizeof(struct _client));
     if (config.hostsocket == NULL) {
+        printf("redisconnonblock\n");
         c->context = redisConnectNonBlock(config.hostip,config.hostport);
     } else {
+        printf("redisconUnixnonblock\n");
         c->context = redisConnectUnixNonBlock(config.hostsocket);
     }
     if (c->context->err) {
@@ -656,6 +667,11 @@ int main(int argc, const char **argv) {
     char *data, *cmd;
     int len;
     
+    testprint();
+    mod();
+    setconfm();
+    
+    
     client c;
     
     srandom(time(NULL));
@@ -666,6 +682,7 @@ int main(int argc, const char **argv) {
     config.requests = 100000;
     config.liveclients = 0;
     config.el = aeCreateEventLoop(1024*10);
+    socketnum = 3;
     aeCreateTimeEvent(config.el,1,showThroughput,NULL,NULL);
     config.keepalive = 1;
     config.datasize = 3;

@@ -1,4 +1,5 @@
 
+
 /*
  * Copyright (c) 2009-2016, Salvatore Sanfilippo <antirez at gmail dot com>
  * All rights reserved.
@@ -1361,7 +1362,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
  * for ready file descriptors. */
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
-    
+    //printf("StartBeforesleep-\n");
     /* Call the Redis Cluster before sleep function. Note that this function
      * may change the state of Redis Cluster (from ok to fail or vice versa),
      * so it's a good idea to call it before serving the unblocked clients
@@ -1387,26 +1388,26 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
         decrRefCount(argv[2]);
         server.get_ack_from_slaves = 0;
     }
-    
+    //printf("StartBeforesleep-step1\n");
     /* Unblock all the clients blocked for synchronous replication
      * in WAIT. */
     if (listLength(server.clients_waiting_acks))
         processClientsWaitingReplicas();
-    
+    //printf("StartBeforesleep-step2\n");
     /* Check if there are clients unblocked by modules that implement
      * blocking commands. */
     moduleHandleBlockedClients();
-    
+    //printf("StartBeforesleep-step3\n");
     /* Try to process pending commands for clients that were just unblocked. */
     if (listLength(server.unblocked_clients))
         processUnblockedClients();
-    
+    //printf("StartBeforesleep-step4\n");
     /* Write the AOF buffer on disk */
     flushAppendOnlyFile(0);
     
     /* Handle writes with pending output buffers. */
     handleClientsWithPendingWrites();
-    
+    //printf("StartBeforesleep-step5\n");
     /* Before we are going to sleep, let the threads access the dataset by
      * releasing the GIL. Redis main thread will not touch anything at this
      * time. */
@@ -2148,6 +2149,7 @@ void initServer(void) {
     
     /* Register a readable event for the pipe used to awake the event loop
      * when a blocked client in a module needs attention. */
+    server.module_blocked_pipe[0]+=2000;
     if (aeCreateFileEvent(server.el, server.module_blocked_pipe[0], AE_READABLE,
                           moduleBlockedClientPipeReadable,NULL) == AE_ERR) {
         serverPanic(
@@ -2545,6 +2547,7 @@ void call(client *c, int flags) {
  * other operations can be performed by the caller. Otherwise
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
+    //printf("start processCommand!\n");
     /* The QUIT command is handled separately. Normal command procs will
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
@@ -2734,6 +2737,7 @@ int processCommand(client *c) {
         queueMultiCommand(c);
         addReply(c,shared.queued);
     } else {
+        //printf("->addReplynormal!\n");
         call(c,CMD_CALL_FULL);
         c->woff = server.master_repl_offset;
         if (listLength(server.ready_keys))

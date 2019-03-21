@@ -86,6 +86,7 @@ void linkClient(client *c) {
 }
 
 client *createClient(int fd) {
+    //printf("Start createClient:fd=%d\n",fd);
     client *c = zmalloc(sizeof(client));
     
     /* passing -1 as fd it is possible to create a non connected client.
@@ -103,8 +104,10 @@ client *createClient(int fd) {
             socketnum = 2;
             close(fd);
             zfree(c);
+            //printf("createFileEventError!");
             return NULL;
         }
+        //printf("readQueryEventSetParameter(create client):fd=%d\n",fd);
     }
     
     selectDb(c,0);
@@ -240,6 +243,7 @@ int prepareClientToWrite(client *c) {
  * -------------------------------------------------------------------------- */
 
 int _addReplyToBuffer(client *c, const char *s, size_t len) {
+    //printf("->startaddReplyToBuffer\n");
     size_t available = sizeof(c->buf)-c->bufpos;
     
     if (c->flags & CLIENT_CLOSE_AFTER_REPLY) return C_OK;
@@ -299,6 +303,7 @@ void _addReplyStringToList(client *c, const char *s, size_t len) {
 
 /* Add the object 'obj' string representation to the client output buffer. */
 void addReply(client *c, robj *obj) {
+    //printf("startaddReply\n");
     if (prepareClientToWrite(c) != C_OK) return;
     
     if (sdsEncodedObject(obj)) {
@@ -652,8 +657,11 @@ int clientHasPendingReplies(client *c) {
 
 #define MAX_ACCEPTS_PER_CALL 1000
 static void acceptCommonHandler(int fd, int flags, char *ip) {
+    //printf("Start acceptcommonHandler\n");
     client *c;
     if ((c = createClient(fd)) == NULL) {
+        
+        //printf("acceptcommonHandler_ERrNULLcreateclientEnd\n");
         serverLog(LL_WARNING,
                   "Error registering fd event for the new client: %s (fd=%d)",
                   strerror(errno),fd);
@@ -665,6 +673,7 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
      * for this condition, since now the socket is already set in non-blocking
      * mode and we can send an error for free using the Kernel I/O */
     if (listLength(server.clients) > server.maxclients) {
+        //printf("acceptcommonHandler_ERRmaxclientEnd\n");
         char *err = "-ERR max number of clients reached\r\n";
         socketnum = 2;
         /* That's a best effort error message, don't check write errors */
@@ -720,9 +729,11 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
     
     server.stat_numconnections++;
     c->flags |= flags;
+    //printf("acceptcommonHandler_normalEnd\n");
 }
 
 void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+    //printf("Start acceptTcpHandler!\n");
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
     char cip[NET_IP_STR_LEN];
     UNUSED(el);
@@ -730,8 +741,11 @@ void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(privdata);
     
     while(max--) {
+        //printf("acceptTcpHandler Maxwhile round!\n");
+        //printf("acceptTcpHandler max=%d!\n",max);
         cfd = anetTcpAccept(server.neterr, fd, cip, sizeof(cip), &cport);
         if (cfd == ANET_ERR) {
+            //printf("acceptTcpHandler ANET_ERR!\n");
             if (errno != EWOULDBLOCK)
                 serverLog(LL_WARNING,
                           "Accepting client connection: %s", server.neterr);
@@ -739,7 +753,9 @@ void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
         serverLog(LL_VERBOSE,"Accepted %s:%d", cip, cport);
         acceptCommonHandler(cfd,0,cip);
+        
     }
+    //printf("acceptTcpHandler normalEnd!\n");
 }
 
 void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -803,6 +819,7 @@ void unlinkClient(client *c) {
         /* Unregister async I/O handlers and close the socket. */
         aeDeleteFileEvent(server.el,c->fd,AE_READABLE);
         aeDeleteFileEvent(server.el,c->fd,AE_WRITABLE);
+        socketnum = 2;
         close(c->fd);
         c->fd = -1;
     }
@@ -1045,7 +1062,7 @@ int writeToClient(int fd, client *c, int handler_installed) {
         
         /* Close connection after entire reply has been sent. */
         if (c->flags & CLIENT_CLOSE_AFTER_REPLY) {
-            freeClient(c);
+            freeClient(c);//close
             return C_ERR;
         }
     }
@@ -1077,7 +1094,7 @@ int handleClientsWithPendingWrites(void) {
         /* If a client is protected, don't do anything,
          * that may trigger write error or recreate handler. */
         if (c->flags & CLIENT_PROTECTED) continue;
-        
+        //printf("start handleclientwithpending,c->fd=%d\n",c->fd);
         /* Try to write buffers to the client socket. */
         if (writeToClient(c->fd,c,0) == C_ERR) continue;
         
@@ -1486,8 +1503,10 @@ void processInputBuffer(client *c) {
  * raw processInputBuffer(). */
 void processInputBufferAndReplicate(client *c) {
     if (!(c->flags & CLIENT_MASTER)) {
+        //printf("->processinputbuffer\n");
         processInputBuffer(c);
     } else {
+        //printf("->(else)processinputbuffer\n");
         size_t prev_offset = c->reploff;
         processInputBuffer(c);
         size_t applied = c->reploff - prev_offset;
@@ -1500,6 +1519,7 @@ void processInputBufferAndReplicate(client *c) {
 }
 
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
+    
     client *c = (client*) privdata;
     int nread, readlen;
     size_t qblen;
@@ -1529,6 +1549,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     //mtcp
     socketnum = 2;
     nread = read(fd, c->querybuf+qblen, readlen);
+    //printf("readfd:%d~nread=%d~c->querybuf=%s~c->fd=%d\n",fd,nread,c->querybuf+qblen,c->fd);
     if (nread == -1) {
         if (errno == EAGAIN) {
             return;
@@ -1545,7 +1566,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         /* Append the query buffer to the pending (not applied) buffer
          * of the master. We'll use this buffer later in order to have a
          * copy of the string applied by the last command executed. */
-        printf("read message:%s\n",c->querybuf+qblen);
+        //printf("read message:%s\n",c->querybuf+qblen);
         
         c->pending_querybuf = sdscatlen(c->pending_querybuf,
                                         c->querybuf+qblen,nread);
@@ -1565,7 +1586,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         freeClient(c);
         return;
     }
-    
+    //printf("processInputBuffer\n");
     /* Time to process the buffer. If the client is a master we need to
      * compute the difference between the applied offset before and after
      * processing the buffer, to understand how much of the replication stream

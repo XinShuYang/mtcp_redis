@@ -52,13 +52,13 @@ static int aeApiCreate(aeEventLoop *eventLoop) {
         return -1;
     }
     socketnum = 2;
-    state->epfd = epoll_create(1024); /* 1024 is just a hint for the kernel */
+    state->epfd = epoll_create(10240); /* 1024 is just a hint for the kernel */
     if (state->epfd == -1) {
         zfree(state->events);
         zfree(state);
         return -1;
     }
-    printf("sucessful create epoll!\n");
+    //printf("sucessful create epoll!\n");
     eventLoop->apidata = state;
     return 0;
 }
@@ -93,8 +93,9 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     if (mask & AE_WRITABLE) ee.events |= EPOLLOUT;
     ee.data.fd = fd;
     socketnum = 2;
+    //printf("epollfd=%d\n",state->epfd);
     if (epoll_ctl(state->epfd,op,fd,&ee) == -1) { return -1;}   //mtcp modificaiton
-    printf("sucessful Add/mod epoll%d!\n",state->epfd);
+    //printf("sucessful Add/mod epoll%d! fd=%d\n",state->epfd,fd);
     return 0;
 }
 
@@ -110,13 +111,13 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     socketnum = 2;
     if (mask != AE_NONE) {
         epoll_ctl(state->epfd,EPOLL_CTL_MOD,fd,&ee);
-        printf("sucessful MOD epoll%d!\n",ee.data.fd);
+        //printf("sucessful MOD epoll%d!\n",ee.data.fd);
     } else {
         /* Note, Kernel < 2.6.9 requires a non null event pointer even for
          * EPOLL_CTL_DEL. */
         ret = epoll_ctl(state->epfd,EPOLL_CTL_DEL,fd,&ee);
         if(ret<0){socketnum = 2; close(fd);return;}
-        printf("sucessful delete epoll%d!\n",state->epfd);
+        //printf("sucessful delete epoll%d!\n",state->epfd);
     }
 }
 
@@ -141,8 +142,12 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
             if (e->events & EPOLLHUP) mask |= AE_WRITABLE;
             eventLoop->fired[j].fd = e->data.fd;
             eventLoop->fired[j].mask = mask;
+            
+            //printf("sucessful wait e->data.fd%d\n",e->data.fd);
         }
-        printf("sucessful wait epoll!%d\n",state->epfd);
+        //printf("sucessful wait epoll!%d\n",state->epfd);
+        
+        //printf("sucessful wait retval%d\n",retval);
     }
     if (retval < 0) {
         if (errno != EINTR)

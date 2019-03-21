@@ -63,39 +63,45 @@ static void anetSetError(char *err, const char *fmt, ...)
 }
 
 int anetSetBlock(char *err, int fd, int non_block) {
+    //printf("start AnetSetBlock!!!\n");
     int flags;
+    
+    if (non_block){
+        flags |= O_NONBLOCK;
+        if (setnonblocking(fd) < 0) {
+            anetSetError(err, "setnonblocking fail: %s", strerror(errno));
+            return ANET_ERR;
+        }
+        /*else{ printf("setnonblock successful!!!\n");
+            
+        }*/
+        
+        
+    }
+    else
+        flags &= ~O_NONBLOCK;
     
     /* Set the socket blocking (if non_block is zero) or non-blocking.
      * Note that fcntl(2) for F_GETFL and F_SETFL can't be
      * interrupted by a signal. */
-    
     if ((flags = fcntl(fd, F_GETFL)) == -1) {
         anetSetError(err, "fcntl(F_GETFL): %s", strerror(errno));
         return ANET_ERR;
     }
     
-    if (non_block)
-        flags |= O_NONBLOCK;
-    else
-        flags &= ~O_NONBLOCK;
+    
     
     if (fcntl(fd, F_SETFL, flags) == -1) {
         anetSetError(err, "fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
         return ANET_ERR;
     }
-    
-    
-    if (setnonblocking(fd) < 0) {
-        anetSetError(err, "setnonblocking fail: %s", strerror(errno));
-        return ANET_ERR;
-    }
-    if (non_block)
-        flags |= O_NONBLOCK;
-    else
-        flags &= ~O_NONBLOCK;
-    
     return ANET_OK;
 }
+    
+    
+
+
+
 
 int anetNonBlock(char *err, int fd) {
     return anetSetBlock(err,fd,1);
@@ -462,6 +468,7 @@ static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int 
     socketnum = 2;
     if (bind(s,sa,len) == -1) {
         anetSetError(err, "bind: %s", strerror(errno));
+        
         socketnum = 2;
         close(s);
         return ANET_ERR;
@@ -469,6 +476,7 @@ static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int 
     socketnum = 2;
     if (listen(s, backlog) == -1) {
         anetSetError(err, "listen: %s", strerror(errno));
+        
         socketnum = 2;
         close(s);
         return ANET_ERR;
@@ -507,10 +515,9 @@ static int _anetTcpServer(char *err, int port, char *bindaddr, int af, int backl
     for (p = servinfo; p != NULL; p = p->ai_next) {
         
         socketnum = 2;
-        
         if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
             continue;
-        
+        //printf("_anetTcpServer socket:%d\n",s);
         if (af == AF_INET6 && anetV6Only(err,s) == ANET_ERR) goto error;
         if (anetSetReuseAddr(err,s) == ANET_ERR) goto error;
         if (anetListen(err,s,p->ai_addr,p->ai_addrlen,backlog) == ANET_ERR) s = ANET_ERR;
@@ -560,7 +567,9 @@ static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *l
     int fd;
     while(1) {
         socketnum = 2;
+        //printf("GenericAccept_S=%d\n",s);
         fd = accept(s,sa,len);
+        //printf("GenericAcceptFD=%d\n",fd);
         if (fd == -1) {
             if (errno == EINTR)
                 continue;
@@ -590,6 +599,7 @@ int anetTcpAccept(char *err, int s, char *ip, size_t ip_len, int *port) {
         if (ip) inet_ntop(AF_INET6,(void*)&(s->sin6_addr),ip,ip_len);
         if (port) *port = ntohs(s->sin6_port);
     }
+    //printf("finish AnetTcpAccept!\n");
     return fd;
 }
 

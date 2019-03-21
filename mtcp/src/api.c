@@ -98,8 +98,6 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 		return -1;
 	}
 
-
-
 	/*
 	 * `base case`: If socket sees no so_error, then
 	 * this also means close_reason will always be
@@ -414,9 +412,8 @@ mtcp_socket(mctx_t mctx, int domain, int type, int protocol)
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_bind(mctx_t mctx, int sockid, 
-	const struct sockaddr *addr, socklen_t addrlen)
-{	//extern int xsy;
-	//printf("bind---%d\n",xsy);
+		const struct sockaddr *addr, socklen_t addrlen)
+{
 	mtcp_manager_t mtcp;
 	struct sockaddr_in *addr_in;
 
