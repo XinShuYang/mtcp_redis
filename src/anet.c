@@ -48,6 +48,8 @@
 
 #include "anet.h"
 
+extern int socketnum;
+
 static void anetSetError(char *err, const char *fmt, ...)
 {
     va_list ap;
@@ -248,6 +250,7 @@ static int anetSetReuseAddr(char *err, int fd) {
 
 static int anetCreateSocket(char *err, int domain) {
     int s;
+    socketnum=2;
     if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
         anetSetError(err, "creating socket: %s", strerror(errno));
         return ANET_ERR;
@@ -466,8 +469,8 @@ static int _anetTcpServer(char *err, int port, char *bindaddr, int af, int backl
 {
     int s = -1, rv;
     char _port[6];  /* strlen("65535") */
-    struct addrinfo hints, *servinfo, *p;
-
+    struct addrinfo hints, *servinfo, *p;  
+ 
     snprintf(_port,6,"%d",port);
     memset(&hints,0,sizeof(hints));
     hints.ai_family = af;
@@ -479,6 +482,7 @@ static int _anetTcpServer(char *err, int port, char *bindaddr, int af, int backl
         return ANET_ERR;
     }
     for (p = servinfo; p != NULL; p = p->ai_next) {
+        socketnum = 2;
         if ((s = socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
             continue;
 

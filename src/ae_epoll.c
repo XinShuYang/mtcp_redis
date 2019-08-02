@@ -30,7 +30,7 @@
 
 
 #include <sys/epoll.h>
-
+extern int socketnum;
 typedef struct aeApiState {
     int epfd;
     struct epoll_event *events;
@@ -45,6 +45,7 @@ static int aeApiCreate(aeEventLoop *eventLoop) {
         zfree(state);
         return -1;
     }
+    socketnum=2;
     state->epfd = epoll_create(1024); /* 1024 is just a hint for the kernel */
     if (state->epfd == -1) {
         zfree(state->events);

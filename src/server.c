@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2009-2016, Salvatore Sanfilippo <antirez at gmail dot com>
  * All rights reserved.
@@ -56,7 +57,9 @@
 #include <locale.h>
 #include <sys/socket.h>
 
+#include "mod.h"
 /* Our shared "common" objects */
+
 
 struct sharedObjectsStruct shared;
 
@@ -2146,13 +2149,14 @@ void initServer(void) {
 
     /* Register a readable event for the pipe used to awake the event loop
      * when a blocked client in a module needs attention. */
+/*    server.module_blocked_pipe[0]+=2000;
     if (aeCreateFileEvent(server.el, server.module_blocked_pipe[0], AE_READABLE,
         moduleBlockedClientPipeReadable,NULL) == AE_ERR) {
             serverPanic(
                 "Error registering the readable event for the module "
                 "blocked clients subsystem.");
     }
-
+*/
     /* Open the AOF file if needed. */
     if (server.aof_state == AOF_ON) {
         server.aof_fd = open(server.aof_filename,
@@ -3797,7 +3801,9 @@ static void sigShutdownHandler(int sig) {
     default:
         msg = "Received shutdown signal, scheduling shutdown...";
     };
-
+    
+    destroy_nf();
+    printf("destroy_nf\n");
     /* SIGINT is often delivered via Ctrl+C in an interactive session.
      * If we receive the signal the second time, we interpret this as
      * the user really wanting to quit ASAP without waiting to persist
@@ -3813,7 +3819,7 @@ static void sigShutdownHandler(int sig) {
 
     serverLogFromHandler(LL_WARNING, msg);
     server.shutdown_asap = 1;
-}
+ }
 
 void setupSignalHandlers(void) {
     struct sigaction act;
@@ -4006,9 +4012,18 @@ int redisIsSupervised(int mode) {
 
 
 int main(int argc, char **argv) {
+    extern int redis_cpu;
     struct timeval tv;
     int j;
-
+    //This part is loading mtcp plugin
+    printf("**%s**\n",argv[1]);
+    redis_cpu=atoi(argv[1]);    
+    argv[1]="redis.conf";
+    //redis_cpu=4;
+    testprint();
+    mod();
+    setconfm();
+    //End
 #ifdef REDIS_TEST
     if (argc == 3 && !strcasecmp(argv[1], "test")) {
         if (!strcasecmp(argv[2], "ziplist")) {
@@ -4140,7 +4155,7 @@ int main(int argc, char **argv) {
         loadServerConfig(configfile,options);
         sdsfree(options);
     }
-
+   
     serverLog(LL_WARNING, "oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo");
     serverLog(LL_WARNING,
         "Redis version=%s, bits=%d, commit=%s, modified=%d, pid=%d, just started",

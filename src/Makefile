@@ -33,6 +33,95 @@ PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
 INSTALL=install
 
+
+
+
+#mtcp
+CC=gcc -g -O3 -Wall -Werror -fgnu89-inline -lgmp
+DPDK=1
+PS=0
+NETMAP=0
+ONVM=1
+CFLAGS=-g -O2
+
+ifeq ($(shell uname -m),x86_64)
+LIBS += -m64
+endif
+
+MTCP_FLD    =../mtcp
+MTCP_INC    =-I${MTCP_FLD}/include
+MTCP_LIB    =-L${MTCP_FLD}/lib
+MTCP_TARGET = ${MTCP_LIB}/libmtcp.a
+
+UTIL_FLD = ../util
+UTIL_INC = -I${UTIL_FLD}/include
+UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o ${UTIL_FLD}/netlib.o
+
+# util library and header
+INC = -I./include/ ${UTIL_INC} ${MTCP_INC} -I${UTIL_FLD}/include
+LIBS = ${MTCP_LIB}
+
+# psio-specific variables
+ifeq ($(PS),1)
+PS_DIR = ../io_engine/
+PS_INC = ${PS_DIR}/include
+INC += -I{PS_INC}
+LIBS += -lmtcp -L${PS_DIR}/lib -lps -lpthread -lnuma -lrt
+endif
+
+# netmap-specific variables
+ifeq ($(NETMAP),1)
+LIBS += -lmtcp -lpthread -lnuma -lrt
+endif
+
+# dpdk-specific variables
+ifeq ($(DPDK),1)
+DPDK_MACHINE_LINKER_FLAGS=$${RTE_SDK}/$${RTE_TARGET}/lib/ldflags.txt
+DPDK_MACHINE_LDFLAGS=$(shell cat ${DPDK_MACHINE_LINKER_FLAGS})
+LIBS += -g -O3 -pthread -lrt -march=native ${MTCP_FLD}/lib/libmtcp.a -lnuma -lmtcp -lpthread -lrt -ldl -lgmp -L${RTE_SDK}/${RTE_TARGET}/lib ${DPDK_MACHINE_LDFLAGS}
+endif
+
+# onvm-specific variables
+ifeq ($(ONVM),1)
+ifeq ($(RTE_TARGET),)
+$(error "Please define RTE_TARGET environment variable")
+endif
+
+INC += -I/local/onvm/openNetVM/onvm/onvm_nflib
+INC += -I/local/onvm/openNetVM/onvm/lib
+INC += -DENABLE_ONVM
+LIBS += /local/onvm/openNetVM/onvm/onvm_nflib/$(RTE_TARGET)/libonvm.a
+LIBS += /local/onvm/openNetVM/onvm/lib/$(RTE_TARGET)/lib/libonvmhelper.a -lm
+endif
+
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
+
+
+ifeq ($(CCP), 1)
+# LIBCCP
+LIBCCP=${MTCP_FLD}/src/libccp
+LIBS += -L$(LIBCCP) -lccp
+INC += -I$(LIBCCP)
+endif
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Default allocator defaults to Jemalloc if it's not an ARM
 MALLOC=libc
 ifneq ($(uname_M),armv6l)
@@ -74,7 +163,7 @@ endif
 
 FINAL_CFLAGS=$(STD) $(WARN) $(OPT) $(DEBUG) $(CFLAGS) $(REDIS_CFLAGS)
 FINAL_LDFLAGS=$(LDFLAGS) $(REDIS_LDFLAGS) $(DEBUG)
-FINAL_LIBS=-lm
+FINAL_LIBS=-lm -lgmp
 DEBUG=-g -ggdb
 
 ifeq ($(uname_S),SunOS)
@@ -215,8 +304,8 @@ ifneq ($(strip $(PREV_FINAL_LDFLAGS)), $(strip $(FINAL_LDFLAGS)))
 endif
 
 # redis-server
-$(REDIS_SERVER_NAME): $(REDIS_SERVER_OBJ)
-	$(REDIS_LD) -o $@ $^ ../deps/hiredis/libhiredis.a ../deps/lua/src/liblua.a $(FINAL_LIBS)
+$(REDIS_SERVER_NAME): ${MTCP_FLD}/lib/libmtcp.a /local/onvm/openNetVM/onvm/onvm_nflib/$(RTE_TARGET)/libonvm.a  /local/onvm/openNetVM/onvm/lib/$(RTE_TARGET)/lib/libonvmhelper.a  $(REDIS_SERVER_OBJ)
+	${CC} ${LIBS} ${UTIL_OBJ}   -o $@ $^ ../deps/hiredis/libhiredis.a ../deps/lua/src/liblua.a $(FINAL_LIBS)
 
 # redis-sentinel
 $(REDIS_SENTINEL_NAME): $(REDIS_SERVER_NAME)
@@ -245,7 +334,7 @@ dict-benchmark: dict.c zmalloc.c sds.c siphash.c
 # building it should complete before building any other object. Instead of
 # depending on a single artifact, build all dependencies first.
 %.o: %.c .make-prerequisites
-	$(REDIS_CC) -c $<
+	$(REDIS_CC) -c $< ${INC} ${CFLAGS}
 
 clean:
 	rm -rf $(REDIS_SERVER_NAME) $(REDIS_SENTINEL_NAME) $(REDIS_CLI_NAME) $(REDIS_BENCHMARK_NAME) $(REDIS_CHECK_RDB_NAME) $(REDIS_CHECK_AOF_NAME) *.o *.gcda *.gcno *.gcov redis.info lcov-html Makefile.dep dict-benchmark
