@@ -24,8 +24,8 @@ Set up both MTCP and MTCP_Redis path:
 
 Run setup.sh to compile mtcp_redis
 ```bash
-cd $MTCP_REDIS  
-./setup.sh  
+  cd $MTCP_REDIS  
+  ./setup.sh  
 ```
      
 
