@@ -4018,7 +4018,7 @@ int main(int argc, char **argv) {
     //This part is loading mtcp plugin
     printf("**%s**\n",argv[1]);
     redis_cpu=atoi(argv[1]);    
-    argv[1]="redis.conf";
+    argv[1]="../redis.conf";
     //redis_cpu=4;
     testprint();
     mod();
