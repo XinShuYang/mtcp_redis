@@ -42,7 +42,9 @@ To run MTCP_Redis with the configuration file, type:
      e.g.  ./redis-server 3 --maxclients 100000
 
 You should make sure the cpu core is not conflict with the ONVM manager core.  
+
 Then you can test the redis-server from a client or benchmark on another node.  
+
 Running Multiple MTCP_Redis Instances with ONVM
 -------------
 This function need a new onvm forward NF. It will be updated soon!
