@@ -1,39 +1,17 @@
-This README is just a fast *quick start* document. You can find more detailed documentation at [redis.io](https://redis.io).
-
-What is Redis?
+Building MTCP_Redis on ONVM
 --------------
 
-Redis is often referred as a *data structures* server. What this means is that Redis provides access to mutable data structures via a set of commands, which are sent using a *server-client* model with TCP sockets and a simple protocol. So different processes can query and modify the same data structures in a shared way.
+MTCP_Redis can be compiled and used with both DPDK and ONVM.
 
-Data structures implemented into Redis have a few special properties:
+If you want to use MTCP_Redis on ONVM. Please follow the instruction below.
 
-* Redis cares to store them on disk, even if they are always served and modified into the server memory. This means that Redis is fast, but that is also non-volatile.
-* Implementation of data structures stress on memory efficiency, so data structures inside Redis will likely use less memory compared to the same data structure modeled using an high level programming language.
-* Redis offers a number of features that are natural to find in a database, like replication, tunable levels of durability, cluster, high availability.
+First，make sure your ONVM version is 19.02(or later).  
 
-Another good example is to think of Redis as a more complex version of memcached, where the operations are not just SETs and GETs, but operations to work with complex data types like Lists, Sets, ordered data structures, and so forth.
+Second, make sure you can run MTCP(devel branch) on your ONVM.  
 
-If you want to know more, this is a list of selected starting points:
+Then：
 
-* Introduction to Redis data types. http://redis.io/topics/data-types-intro
-* Try Redis directly inside your browser. http://try.redis.io
-* The full list of Redis commands. http://redis.io/commands
-* There is much more inside the Redis official documentation. http://redis.io/documentation
-
-Building Redis
---------------
-
-Redis can be compiled and used on Linux, OSX, OpenBSD, NetBSD, FreeBSD.
-We support big endian and little endian architectures, and both 32 bit
-and 64 bit systems.
-
-It may compile on Solaris derived systems (for instance SmartOS) but our
-support for this platform is *best effort* and Redis is not guaranteed to
-work as well as in Linux, OSX, and \*BSD there.
-
-It is as simple as:
-
-    % make
+    % git clone https://github.com/XinShuYang/mtcp_redis.git
 
 You can run a 32 bit Redis binary using:
 
@@ -41,7 +19,7 @@ You can run a 32 bit Redis binary using:
 
 After building Redis, it is a good idea to test it using:
 
-    % make test
+    % git clone 
 
 Fixing build problems with dependencies or cached build options
 ---------
