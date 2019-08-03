@@ -36,7 +36,7 @@ Start ONVM
 To run MTCP_Redis with the configuration file, type:
 
      cd src
-     sudo ./redis-server <cpu_core_num> --maxclients <clients number>
+     sudo ./redis-server <cpu_core_number> --maxclients <clients number>
      e.g.  sudo ./redis-server 3 --maxclients 100000
 
 You should make sure the cpu core is not conflict with the ONVM manager core.  
