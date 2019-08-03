@@ -40,7 +40,7 @@ static int (*real_epoll_wait)(int, struct epoll_event *, int, int);
 
 static int (*real_fcntl)(int, int,...);
 
-static char *conf_file = "epserver.conf";
+static char *conf_file = "mtcp.conf";
 static int core_limit;
 
 struct thread_context
