@@ -43,6 +43,8 @@ You should make sure the cpu core is not conflict with the ONVM manager core.
 
 Then you can test the redis-server from a client or benchmark on another node.  
 
+You may need to change the ip address or other parameters in redis.conf.  
+
 Running Multiple MTCP_Redis Instances with ONVM
 -------------
 This function need a new onvm forward NF. It will be updated soon!
