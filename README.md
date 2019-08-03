@@ -11,15 +11,16 @@ Second, make sure you can run MTCP(devel branch) on your ONVM.
 
 Then：
 
-    % git clone https://github.com/XinShuYang/mtcp_redis.git
+     git clone https://github.com/XinShuYang/mtcp_redis.git
 
-You can run a 32 bit Redis binary using:
+Switch to onvm branch:
 
-    % make 32bit
+    % git checkout onvm
 
-After building Redis, it is a good idea to test it using:
+Set up both MTCP and MTCP_Redis path:
 
-    % git clone 
+    % export MTCP_SDK = <PATH>    e.g. export MTCP_SDK = /local/onvm/mtcp
+    % export MTCP_REDIS = <PATH>    e.g. export MTCP_REDIS = /local/onvm/mtcp_redis
 
 Fixing build problems with dependencies or cached build options
 ---------
