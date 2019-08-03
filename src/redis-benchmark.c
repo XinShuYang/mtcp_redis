@@ -48,7 +48,8 @@
 
 #define UNUSED(V) ((void) V)
 #define RANDPTR_INITIAL_SIZE 8
-
+#include "mod.h"
+extern int socketnum;
 static struct config {
     aeEventLoop *el;
     const char *hostip;
@@ -328,6 +329,7 @@ static client createClient(char *cmd, size_t len, client from) {
             fprintf(stderr,"%s:%d: %s\n",config.hostip,config.hostport,c->context->errstr);
         else
             fprintf(stderr,"%s: %s\n",config.hostsocket,c->context->errstr);
+	destroy_nf();
         exit(1);
     }
     /* Suppress hiredis cleanup of unused buffers for max speed. */
@@ -464,8 +466,11 @@ static void benchmark(char *title, char *cmd, int len) {
     config.title = title;
     config.requests_issued = 0;
     config.requests_finished = 0;
-
+    
+    socketnum = 2;
     c = createClient(cmd,len,NULL);
+
+    socketnum = 2;
     createMissingClients(c);
 
     config.start = mstime();
@@ -474,6 +479,7 @@ static void benchmark(char *title, char *cmd, int len) {
 
     showLatencyReport();
     freeAllClients();
+    destroy_nf();
 }
 
 /* Returns number of consumed options. */
@@ -651,7 +657,10 @@ int main(int argc, const char **argv) {
     int len;
 
     client c;
-
+    
+    mod();
+    setconfm();
+    
     srandom(time(NULL));
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
@@ -659,6 +668,7 @@ int main(int argc, const char **argv) {
     config.numclients = 50;
     config.requests = 100000;
     config.liveclients = 0;
+    socketnum = 2;
     config.el = aeCreateEventLoop(1024*10);
     aeCreateTimeEvent(config.el,1,showThroughput,NULL,NULL);
     config.keepalive = 1;

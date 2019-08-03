@@ -320,12 +320,12 @@ $(REDIS_CHECK_AOF_NAME): $(REDIS_SERVER_NAME)
 	$(REDIS_INSTALL) $(REDIS_SERVER_NAME) $(REDIS_CHECK_AOF_NAME)
 
 # redis-cli
-$(REDIS_CLI_NAME): $(REDIS_CLI_OBJ)
-	$(REDIS_LD) -o $@ $^ ../deps/hiredis/libhiredis.a ../deps/linenoise/linenoise.o $(FINAL_LIBS)
+$(REDIS_CLI_NAME): ${MTCP_FLD}/lib/libmtcp.a /local/onvm/openNetVM/onvm/onvm_nflib/$(RTE_TARGET)/libonvm.a  /local/onvm/openNetVM/onvm/lib/$(RTE_TARGET)/lib/libonvmhelper.a  $(REDIS_CLI_OBJ)
+	${CC} ${LIBS} ${UTIL_OBJ} -o $@ $^ ../deps/hiredis/libhiredis.a ../deps/linenoise/linenoise.o $(FINAL_LIBS)
 
 # redis-benchmark
-$(REDIS_BENCHMARK_NAME): $(REDIS_BENCHMARK_OBJ)
-	$(REDIS_LD) -o $@ $^ ../deps/hiredis/libhiredis.a $(FINAL_LIBS)
+$(REDIS_BENCHMARK_NAME): ${MTCP_FLD}/lib/libmtcp.a /local/onvm/openNetVM/onvm/onvm_nflib/$(RTE_TARGET)/libonvm.a  /local/onvm/openNetVM/onvm/lib/$(RTE_TARGET)/lib/libonvmhelper.a $(REDIS_BENCHMARK_OBJ)
+	${CC} ${LIBS} ${UTIL_OBJ} -o $@ $^ ../deps/hiredis/libhiredis.a $(FINAL_LIBS)
 
 dict-benchmark: dict.c zmalloc.c sds.c siphash.c
 	$(REDIS_CC) $(FINAL_CFLAGS) $^ -D DICT_BENCHMARK_MAIN -o $@ $(FINAL_LIBS)

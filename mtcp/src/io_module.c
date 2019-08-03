@@ -598,7 +598,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 
 		/* Initialize onvm */
 		CONFIG.nf_local_ctx = onvm_nflib_init_nf_local_ctx();
-		ret = onvm_nflib_init(argc, argv, "mtcp_nf", CONFIG.nf_local_ctx, NULL);
+		ret = onvm_nflib_init(argc, argv, "mtcp_redis", CONFIG.nf_local_ctx, NULL);
 		if (ret < 0) {
 			TRACE_ERROR("Invalid EAL args!\n");
 			exit(EXIT_FAILURE);

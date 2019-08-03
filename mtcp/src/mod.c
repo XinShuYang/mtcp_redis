@@ -58,20 +58,7 @@ mctx_t mctx;
 
 int socketnum;
 int redis_cpu;
-/*struct server_vars
- {
- char request[HTTP_HEADER_LEN];
- int recv_len;
- int request_len;
- long int total_read, total_sent;
- uint8_t done;
- uint8_t rspheader_sent;
- uint8_t keep_alive;
- 
- int fidx;                        // file cache index
- char fname[NAME_LIMIT];                // file name
- long int fsize;                    // file size
- }; */
+
 void testprint(){
     printf("*****sucessful test!!!!!ONVM----****\n");
     return;
@@ -87,21 +74,7 @@ void setconfm(){
     mtcp_getconf(&mcfg);
     mcfg.num_cores = core_limit;
     mtcp_setconf(&mcfg);
-    
-    //int listener;
-    //struct sockaddr_in saddr;
-    
-    
-    //struct epoll_event *eevents;
-    //int nevents;
-    //int ep;
-    
-    //int connfd;
-    
-    //char buf[HTTP_HEADER_LEN];
-    
-    //int i;
-    
+        
     socketnum = 1;
     
     printf("%s*******",conf_file);
@@ -118,202 +91,10 @@ void setconfm(){
     ctx = (struct thread_context *)calloc(1, sizeof(struct thread_context));
     ctx->mctx = mtcp_create_context(redis_cpu);
     
-    // epoll_create PART
-    /*socketnum = 2;
-     ctx->ep = epoll_create(MAX_EVENTS);
-     if (ctx->ep < 0) {
-     mtcp_destroy_context(ctx->mctx);
-     free(ctx);
-     TRACE_ERROR("Failed to create epoll descriptor!\n");
-     return;
-     }*/
-    
-    /* allocate memory for server variables */
-    /*->svars = (struct server_vars *)
-     calloc(MAX_FLOW_NUM, sizeof(struct server_vars));
-     if (!ctx->svars) {
-     mtcp_close(ctx->mctx, ctx->ep);
-     mtcp_destroy_context(ctx->mctx);
-     free(ctx);
-     TRACE_ERROR("Failed to create server_vars struct!\n");
-     return;
-     } */
-    
-    // socket PART
-    /*socketnum = 2;
-     listener = socket(AF_INET, SOCK_STREAM, 0);
-     if (listener < 0) {
-     TRACE_ERROR("Failed to create listening socket!\n");
-     return ;
-     } */
-    
-    /* setsockopt PART
-     socketnum = 2;
-     int opt = 1 ;
-     ret = setsockopt(listener, SOL_SOCKET,SO_REUSEADDR, &opt, sizeof(opt)); */
-    
-    //setsock_nonblock PART
-    /* ret = mtcp_setsock_nonblock(ctx->mctx, listener);
-     if (ret < 0) {
-     TRACE_ERROR("Failed to set socket in nonblocking mode.\n");
-     return ;
-     } */
-    
-    /* bind to port 80 */
-    /* saddr.sin_family = AF_INET;
-     saddr.sin_addr.s_addr = INADDR_ANY;
-     saddr.sin_port = htons(80); */
-    
-    //bind PART
-    /* socketnum = 2;
-     ret = bind(listener,(struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
-     if (ret < 0) {
-     TRACE_ERROR("Failed to bind to the listening socket!\n");
-     return ;
-     } */
-    
-    
-    /* listen (backlog: can be configured) */
-    //listen + epoll_ctl PART
-    /*
-     socketnum = 2;
-     ret = listen(listener, 4096);
-     if(ret<0){
-     TRACE_ERROR("Failed to start the listening!\n");
-     return ;
-     }
-     
-     ev.events = MTCP_EPOLLIN; printf("%d|%d\n",ev.events,(&ev)->events);
-     ev.data.sockid = listener;
-     evv.events = EPOLLIN;
-     evv.data.fd = listener;
-     //mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_ADD, listener, &ev);
-     socketnum = 2;
-     epoll_ctl(ctx->ep, EPOLL_CTL_ADD, listener, &evv);
-     printf("successful listen"); */
-    
-    /*
-     mctx = ctx->mctx;
-     ep = ctx->ep;
-     events = (struct mtcp_epoll_event *) calloc(MAX_EVENTS, sizeof(struct mtcp_epoll_event));
-     eevents = (struct epoll_event *) calloc(MAX_EVENTS, sizeof(struct epoll_event));
-     if (!events) {
-     TRACE_ERROR("Failed to create event struct!\n");
-     exit(-1);
-     }
-     while(1){
-     socketnum = 2;
-     nevents = epoll_wait(ep, eevents, MAX_EVENTS, -1);
-     if (nevents < 0) {
-     if (errno != EINTR)
-     perror("mtcp_epoll_wait");
-     break;
-     }
-     for (i = 0; i < nevents; i++) {
-     */
-    //accept PART
-    /*
-     if (events[i].data.sockid == listener) {
-     socketnum = 2;
-     connfd = accept(listener, NULL, NULL);
-     if (connfd < 0)
-     {
-     perror("accept error");
-     continue;
-     }
-     if (connfd >= 0) {
-     if (connfd >= MAX_FLOW_NUM) {
-     TRACE_ERROR("Invalid socket id %d.\n", connfd);
-     return ;
-     }
-     
-     
-     ev.events = MTCP_EPOLLIN;
-     ev.data.sockid = connfd;
-     evv.events = EPOLLIN;
-     evv.data.fd = connfd;
-     mtcp_setsock_nonblock(ctx->mctx, connfd);
-     socketnum = 2;
-     epoll_ctl(ctx->ep, EPOLL_CTL_ADD, connfd, &evv);
-     TRACE_APP("Socket %d registered.\n", connfd);
-     
-     }else {
-     if (errno != EAGAIN) {
-     TRACE_ERROR("mtcp_accept() error %s\n",
-     strerror(errno));
-     }
-     }
-     
-     } */
-    //read PART
-    /*
-     else if (events[i].events & MTCP_EPOLLIN) {
-     socketnum = 2;
-     ret = read(events[i].data.sockid, buf, HTTP_HEADER_LEN);
-     
-     if (ret == 0) {
-     // connection closed by remote host
-     mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_DEL, events[i].data.sockid, NULL);
-     mtcp_close(ctx->mctx, events[i].data.sockid);
-     } else if (ret < 0) {
-     // if not EAGAIN, it's an error
-     if (errno != EAGAIN) {
-     mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_DEL, events[i].data.sockid, NULL);
-     mtcp_close(ctx->mctx, events[i].data.sockid);
-     }
-     }
-     else {
-     printf("%s!!!\n",buf);
-     int rwrite;
-     buf[1]='A';
-     socketnum = 2;
-     rwrite = write(events[i].data.sockid,buf,ret);
-     printf("write %d %s\n",rwrite,buf);
-     if(rwrite<0){ret=rwrite;}
-     //mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_DEL, events[i].data.sockid, NULL);
-     //mtcp_close(ctx->mctx, events[i].data.sockid);
-     }
-     
-     } */
-    
-    //}  //for
-    //}   //while
-    /*
-     mtcp_destroy_context(mctx); */
     return ;
     
 }
-/*
-void setclient(){
-    struct mtcp_conf mcfg;
-    int ret;
 
-    core_limit=1;
-    mtcp_getconf(&mcfg);
-    mcfg.num_cores = core_limit;
-    mtcp_setconf(&mcfg);
-    
-    socketnum = 1;
-    
-    printf("%s*******",conf_file);
-    ret = mtcp_init(conf_file);
-    if(ret){
-        printf("init fail!");
-        return;
-    }
-    mtcp_getconf(&mcfg);
-    
-    
-    
-    mtcp_core_affinitize(0);
-    ctx = (struct thread_context *)calloc(1, sizeof(struct thread_context));
-    ctx->mctx = mtcp_create_context(0);
-    
-    
-    return ;
-    
-}
-*/
 void mod(){
 #define INIT_FUNCTION(func) \
 real_##func = dlsym(RTLD_NEXT, #func); \
@@ -498,8 +279,6 @@ int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event){
     }
 }
 int epoll_wait(int epfd, struct epoll_event *eventss, int maxevents, int timeout){
-    //struct mtcp_epoll_event *temp;
-    //temp = (struct mtcp_epoll_event *) calloc(MAX_EVENTS, sizeof(struct mtcp_epoll_event));
     static struct mtcp_epoll_event temp[MAX_EVENTS*sizeof(struct mtcp_epoll_event)];
     static int result,i;
     if(epfd>=FD_VALUE){

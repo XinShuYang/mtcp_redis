@@ -33,6 +33,7 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "mod.h"
 
 /*-----------------------------------------------------------------------------
  * Config file name-value maps.
@@ -845,6 +846,7 @@ void loadServerConfig(char *filename, char *options) {
             if ((fp = fopen(filename,"r")) == NULL) {
                 serverLog(LL_WARNING,
                     "Fatal error, can't open config file '%s'", filename);
+		destroy_nf();
                 exit(1);
             }
         }
