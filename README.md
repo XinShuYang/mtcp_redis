@@ -15,12 +15,19 @@ Then：
 
 Switch to onvm branch:
 
-    % git checkout onvm
+     git checkout onvm
 
 Set up both MTCP and MTCP_Redis path:
 
-    % export MTCP_SDK = <PATH>    e.g. export MTCP_SDK = /local/onvm/mtcp
-    % export MTCP_REDIS = <PATH>    e.g. export MTCP_REDIS = /local/onvm/mtcp_redis
+     export MTCP_SDK = <PATH>    e.g. export MTCP_SDK = /local/onvm/mtcp
+     export MTCP_REDIS = <PATH>    e.g. export MTCP_REDIS = /local/onvm/mtcp_redis
+
+Run setup.sh to compile mtcp_redis
+```bash
+     cd $MTCP_REDIS  
+     ./setup.sh  
+```
+     
 
 Fixing build problems with dependencies or cached build options
 ---------
