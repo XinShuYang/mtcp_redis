@@ -1,11 +1,9 @@
 Building MTCP_Redis on ONVM
 --------------
 
-MTCP_Redis can be compiled and used with both DPDK and ONVM.
+MTCP_Redis can be compiled and used with both DPDK and ONVM. If you want to use MTCP_Redis on ONVM. Please follow the instruction below.    
 
-If you want to use MTCP_Redis on ONVM. Please follow the instruction below.
-
-First，make sure your ONVM version is 19.02(or later).  
+First, make sure your ONVM version is 19.02(or later).  
 
 Second, make sure you can run MTCP(devel branch) on your ONVM.  
 
